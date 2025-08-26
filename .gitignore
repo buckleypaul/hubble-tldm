@@ -4,6 +4,10 @@ venv/
 env/
 ENV/
 
+# Temporary files and directories
+.temp*
+.tmp*
+
 # Python
 __pycache__/
 *.py[cod]

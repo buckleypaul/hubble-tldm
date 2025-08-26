@@ -126,6 +126,15 @@ fi
 # =============================================================================
 echo "[INFO] Setting up Python virtual environment..."
 
+# Download provision_key.py if it doesn't exist
+if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+    echo "[INFO] Downloading $PYTHON_SCRIPT..."
+    if ! wget -q "$BASE_URL/$PYTHON_SCRIPT" -O "$PYTHON_SCRIPT"; then
+        echo "[ERROR] Failed to download $PYTHON_SCRIPT" >&2
+        exit 1
+    fi
+fi
+
 # Download requirements.txt if it doesn't exist
 if [[ ! -f "requirements.txt" ]]; then
     echo "[INFO] Downloading requirements.txt..."
