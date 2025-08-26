@@ -52,6 +52,13 @@ The provisioning script automatically:
 - **System tools**: `wget`, `curl`, `tar`, `python3`, `pip` - Usually available by default
 - **Hardware**: JLink-compatible device connected via USB
 
+## Supported Boards
+
+Currently, only these boards are supported:
+
+- **`efr32mg24-dk`**: Silicon Labs EFR32MG24 Development Kit
+- **`nrf21540-dk`**: Nordic nRF21540 Development Kit
+
 ## Usage
 
 ### Basic Provisioning
@@ -64,19 +71,16 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 
 - **`--device-id`**: Unique identifier for the device (UUID format)
 - **`--key`**: Cryptographic key for the device (base64 encoded)
-- **`--board-id`**: Board identifier (e.g., `efr32mg24-dk`, `nrf52840-dk`)
+- **`--board-id`**: Board identifier (must be `efr32mg24-dk` or `nrf21540-dk`)
 
 ### Examples
 
 ```bash
-# EFR32MG24 Development Kit
+# Silicon Labs EFR32MG24 Development Kit
 curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id efr32mg24-dk
 
-# Nordic nRF52840 Development Kit
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 12345678-1234-1234-1234-123456789abc --key <your-base64-key> --board-id nrf52840-dk
-
-# STM32F4 Discovery
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 87654321-4321-4321-4321-cba987654321 --key <your-base64-key> --board-id stm32f4-discovery
+# Nordic nRF21540 Development Kit
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id nrf21540-dk
 ```
 
 ## How Tool-Less Management Works
@@ -96,7 +100,8 @@ The script downloads all necessary components from GitHub:
 
 ### 3. Intelligent Device Programming
 - Flashes firmware using automatically downloaded JLinkExe
-- Supports various device types (EFR32, nRF52, STM32, etc.)
+- **EFR32MG24-DK**: Uses EFR32MG24BxxxF1536 device type
+- **nRF21540-DK**: Uses nRF52840_xxAA device type
 - Configurable connection parameters (SWD, speed, etc.)
 - No manual JLink configuration needed
 
@@ -105,18 +110,5 @@ The script downloads all necessary components from GitHub:
 - Establishes serial connection for key provisioning
 - Handles base64-encoded cryptographic keys
 - No manual port configuration required
-
-## Supported Boards
-
-The system supports any board that:
-- Has JLink-compatible debugging interface
-- Supports SWD programming
-- Has a firmware image named `{board-id}.hex`
-
-Common examples:
-- **Silicon Labs**: EFR32MG24-DK, EFR32FG14-DK
-- **Nordic**: nRF52840-DK, nRF52833-DK
-- **STMicroelectronics**: STM32F4-Discovery, STM32L4-Discovery
-- **Custom boards**: Any board with compatible debugging interface
 
 ## File Structure

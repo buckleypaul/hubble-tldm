@@ -60,6 +60,13 @@ if [[ -z "$DEVICE_ID" ]] || [[ -z "$KEY" ]] || [[ -z "$BOARD_ID" ]]; then
     exit 1
 fi
 
+# Validate board ID
+if [[ "$BOARD_ID" != "efr32mg24-dk" ]] && [[ "$BOARD_ID" != "nrf21540-dk" ]]; then
+    echo "[ERROR] Unsupported board ID: $BOARD_ID" >&2
+    echo "[ERROR] Supported boards: efr32mg24-dk, nrf21540-dk" >&2
+    exit 1
+fi
+
 # Set firmware filename based on board ID
 FIRMWARE_HEX="${BOARD_ID}.hex"
 
@@ -112,13 +119,28 @@ fi
 chmod +x "$JLINK_EXE"
 
 echo "[INFO] Flashing firmware using JLinkExe..."
-if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
-    -device EFR32MG24BxxxF1536 \
-    -if SWD \
-    -speed 4000 \
-    -autoconnect 1; then
-    echo "[ERROR] Firmware flashing failed" >&2
-    exit 1
+
+# Board-specific JLink parameters
+if [[ "$BOARD_ID" == "efr32mg24-dk" ]]; then
+    echo "[INFO] Using EFR32MG24-DK parameters..."
+    if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
+        -device EFR32MG24BxxxF1536 \
+        -if SWD \
+        -speed 4000 \
+        -autoconnect 1; then
+        echo "[ERROR] Firmware flashing failed" >&2
+        exit 1
+    fi
+elif [[ "$BOARD_ID" == "nrf21540-dk" ]]; then
+    echo "[INFO] Using nRF21540-DK parameters..."
+    if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
+        -device nRF52840_xxAA \
+        -if SWD \
+        -speed 4000 \
+        -autoconnect 1; then
+        echo "[ERROR] Firmware flashing failed" >&2
+        exit 1
+    fi
 fi
 
 # =============================================================================
