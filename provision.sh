@@ -124,42 +124,22 @@ fi
 # =============================================================================
 # Serial Port Detection
 # =============================================================================
-echo "[INFO] Serial port detection starting..."
-echo "[INFO] Please unplug your device and press Enter when ready..."
-read -r
+echo "[INFO] Auto-detecting USB modem serial port..."
 
-# Get list of current TTY devices
-echo "[INFO] Scanning for current TTY devices..."
-current_ttys=$(ls /dev/tty* 2>/dev/null | sort)
+# Find USB modem TTY devices
+usb_ttys=$(ls /dev/tty.usbmodem* 2>/dev/null | sort)
 
-echo "[INFO] Now please plug in your device and press Enter..."
-read -r
-
-# Wait a moment for device to be recognized
-sleep 2
-
-# Get list of TTY devices after plugging in
-echo "[INFO] Scanning for new TTY devices..."
-new_ttys=$(ls /dev/tty* 2>/dev/null | sort)
-
-# Find the new device
-new_device=""
-for tty in $new_ttys; do
-    if ! echo "$current_ttys" | grep -q "^$tty$"; then
-        new_device="$tty"
-        break
-    fi
-done
-
-if [[ -z "$new_device" ]]; then
-    echo "[ERROR] No new TTY device detected" >&2
+if [[ -z "$usb_ttys" ]]; then
+    echo "[ERROR] No USB modem TTY devices found" >&2
+    echo "[INFO] Please ensure your device is connected via USB" >&2
     echo "[INFO] Available TTY devices:" >&2
-    echo "$new_ttys" >&2
+    ls /dev/tty* 2>/dev/null | sort >&2
     exit 1
 fi
 
-echo "[SUCCESS] Detected new TTY device: $new_device"
-SERIAL_PORT="$new_device"
+# Select the first USB modem TTY device
+SERIAL_PORT=$(echo "$usb_ttys" | head -n 1)
+echo "[SUCCESS] Using serial port: $SERIAL_PORT"
 
 # =============================================================================
 # Run Python Provisioning
