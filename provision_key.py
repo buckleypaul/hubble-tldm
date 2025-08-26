@@ -1,22 +1,41 @@
 #!/usr/bin/env python3
-#
-# Copyright (c) 2025 HubbleNetwork
-#
-# SPDX-License-Identifier: Apache-2.0
+"""
+Device Key Provisioning Script for Hubble TLDM
+
+This script provisions a cryptographic key to a device using serial communication.
+The device must be listening on the serial port and be ready to receive the key.
+
+Usage: provision_key.py [-h] [-b] <key> <serial_port>
+"""
 
 import argparse
 import base64
 import sys
 import time
+from typing import Optional
 
 import serial
 import subprocess
 
 
+# =============================================================================
+# Constants
+# =============================================================================
 SLEEP_TIME = 0.05
+DEVICE_TYPE = "EFR32MG24BXXXF1536"
+CONNECTION_SPEED = "4000"
+RESET_DELAY = 3
 
 
-def provision_key(key: str, term: str, encoded: bool) -> None:
+# =============================================================================
+# Main Functions
+# =============================================================================
+def reset_device() -> None:
+    """Reset the device using JLinkExe.
+    
+    Raises:
+        SystemExit: If the device reset fails
+    """
     try:
         subprocess.run(
             ["JLinkExe"],
@@ -29,64 +48,119 @@ def provision_key(key: str, term: str, encoded: bool) -> None:
         print(f"Error resetting device: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # give enough time to reset
-    time.sleep(3)
 
-    with open(key, "rb") as f:
-        key_data = bytearray(f.read())
-        if encoded:
-            key_data = bytearray(base64.b64decode(key_data))
-
+def provision_key(key_string: str, serial_port: str, base64_encoded: bool) -> None:
+    """Provision a cryptographic key to the device.
+    
+    Args:
+        key_string: The key as a string (either raw or base64 encoded)
+        serial_port: Serial port connected to the device
+        base64_encoded: Whether the key is base64 encoded
+        
+    Raises:
+        SystemExit: If provisioning fails
+    """
+    # Reset device first
+    print("[INFO] Resetting device...")
+    reset_device()
+    
+    # Give enough time for reset
+    print(f"[INFO] Waiting {RESET_DELAY} seconds for device reset...")
+    time.sleep(RESET_DELAY)
+    
+    # Process key data
     try:
-        ser = serial.Serial(port=term, baudrate=115200, timeout=1)
+        if base64_encoded:
+            print("[INFO] Decoding base64 key...")
+            key_data = bytearray(base64.b64decode(key_string))
+        else:
+            print("[INFO] Using raw key string...")
+            key_data = bytearray(key_string.encode('utf-8'))
+            
+        print(f"[INFO] Key size: {len(key_data)} bytes")
+        
+    except base64.binascii.Error as e:
+        print(f"Error decoding base64 key: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Open serial connection
+    try:
+        print(f"[INFO] Opening serial connection to {serial_port}...")
+        ser = serial.Serial(port=serial_port, baudrate=115200, timeout=1)
         ser.reset_input_buffer()
     except serial.SerialException as e:
-        print(f"{e}", file=sys.stderr)
+        print(f"Serial connection error: {e}", file=sys.stderr)
         sys.exit(1)
+    
+    try:
+        # Provision the key
+        print("[INFO] Provisioning key to device...")
+        for byte in key_data:
+            ser.write(bytes([byte]))
+            time.sleep(SLEEP_TIME)
+        
+        # Provision UTC time (in milliseconds)
+        print("[INFO] Provisioning UTC timestamp...")
+        utc_ms = int(time.time() * 1000)
+        timestamp_frame = f"{utc_ms}\n".encode("ascii")
+        
+        for byte in timestamp_frame:
+            ser.write(bytes([byte]))
+            time.sleep(SLEEP_TIME)
+            
+        print("[SUCCESS] Key provisioning completed successfully!")
+        
+    finally:
+        ser.close()
 
-    # provision the key
-    for x in key_data:
-        ser.write(bytes([x]))
-        time.sleep(SLEEP_TIME)
 
-    # then provision the utc time (in ms)
-    utc_ms = int(time.time() * 1000)
-    frame = f"{utc_ms}\n".encode("ascii")
-    for b in frame:
-        ser.write(bytes([b]))
-        time.sleep(SLEEP_TIME)
-
-
-def parse_args() -> None:
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments.
+    
+    Returns:
+        Parsed command line arguments
+        
+    Raises:
+        SystemExit: If argument parsing fails
     """
-    Provisioning key to a device using serial port.
-
-    The device must be listening on the serial port and be ready to receive
-    the key.
-
-    usage: provisioning_key.py [-h] [-b] path/to/key /path/to/serial
-    """
-
-    global args
-
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False
+    )
+    
+    parser.add_argument(
+        "key",
+        help="The key string to provision (raw or base64 encoded)"
+    )
+    
+    parser.add_argument(
+        "serial",
+        help="Serial port connected to the device"
+    )
+    
+    parser.add_argument(
+        "-b", "--base64",
+        help="The key is encoded in base64",
+        action="store_true",
+        default=False
+    )
+    
+    return parser.parse_args()
 
-    parser.add_argument("key",
-                        help="The key to provision")
-    parser.add_argument("serial",
-                        help="The serial port connected to the device")
-    parser.add_argument("-b", "--base64",
-                        help="The key is encoded in base64", action='store_true', default=False)
-    args = parser.parse_args()
+
+def main() -> None:
+    """Main entry point for the script."""
+    try:
+        args = parse_arguments()
+        provision_key(args.key, args.serial, args.base64)
+    except KeyboardInterrupt:
+        print("\n[INFO] Operation cancelled by user", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
-def main():
-    parse_args()
-
-    provision_key(args.key, args.serial, args.base64)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
