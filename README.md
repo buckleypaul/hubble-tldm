@@ -49,3 +49,7 @@ The API will respond with:
   "registration_script": "curl -s http://localhost:8000/install.sh | bash -s -- --device-id 02765c6f-6a6e-4da8-8612-54f7a009831b"
 }
 ```
+
+## Other Dependencies
+
+`wget`, `curl` are required
