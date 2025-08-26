@@ -122,6 +122,39 @@ if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
 fi
 
 # =============================================================================
+# Python Environment Setup
+# =============================================================================
+echo "[INFO] Setting up Python virtual environment..."
+
+# Download requirements.txt if it doesn't exist
+if [[ ! -f "requirements.txt" ]]; then
+    echo "[INFO] Downloading requirements.txt..."
+    if ! wget -q "$BASE_URL/requirements.txt" -O "requirements.txt"; then
+        echo "[ERROR] Failed to download requirements.txt" >&2
+        exit 1
+    fi
+fi
+
+# Create virtual environment if it doesn't exist
+if [[ ! -d ".venv" ]]; then
+    echo "[INFO] Creating Python virtual environment..."
+    if ! python3 -m venv .venv; then
+        echo "[ERROR] Failed to create virtual environment" >&2
+        exit 1
+    fi
+fi
+
+# Activate virtual environment and install requirements
+echo "[INFO] Installing Python dependencies..."
+source .venv/bin/activate
+if ! pip install -r requirements.txt; then
+    echo "[ERROR] Failed to install Python dependencies" >&2
+    exit 1
+fi
+
+echo "[SUCCESS] Python environment setup completed"
+
+# =============================================================================
 # Serial Port Detection
 # =============================================================================
 echo "[INFO] Auto-detecting USB modem serial port..."
@@ -146,6 +179,8 @@ echo "[SUCCESS] Using serial port: $SERIAL_PORT"
 # =============================================================================
 echo "[INFO] Running Python provisioning with device ID and key..."
 echo "[INFO] Using serial port: $SERIAL_PORT"
+echo "[INFO] Using Python from virtual environment: $(which python3)"
+
 if ! python3 "$PYTHON_SCRIPT" --base64 "$KEY" "$SERIAL_PORT"; then
     echo "[ERROR] Python provisioning failed" >&2
     exit 1
