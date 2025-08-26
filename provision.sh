@@ -1,8 +1,6 @@
 #!/bin/bash
-"""
-Device Provisioning Script for Hubble TLDM
-This script downloads necessary tools and firmware, then programs the device.
-"""
+# Device Provisioning Script for Hubble TLDM
+# This script downloads necessary tools and firmware, then programs the device.
 
 set -euo pipefail
 
