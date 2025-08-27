@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Device Provisioning Script for Hubble TLDM
 # This script downloads necessary tools and firmware, then programs the device.
 
@@ -11,7 +11,7 @@ BASE_URL="https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads
 JLINK_TAR="jlink.tar.gz"
 PYTHON_SCRIPT="provision_key.py"
 TAR_DIR="JLink_V862"
-JLINK_EXE="$TAR_DIR/JLinkExe"
+JLINK_EXE=""
 
 # =============================================================================
 # Command Line Argument Parsing
@@ -19,6 +19,7 @@ JLINK_EXE="$TAR_DIR/JLinkExe"
 DEVICE_ID=""
 KEY=""
 BOARD_ID=""
+JLINK_DEVICE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -61,11 +62,19 @@ if [[ -z "$DEVICE_ID" ]] || [[ -z "$KEY" ]] || [[ -z "$BOARD_ID" ]]; then
 fi
 
 # Validate board ID
-if [[ "$BOARD_ID" != "efr32mg24-dk" ]] && [[ "$BOARD_ID" != "nrf21540-dk" ]]; then
-    echo "[ERROR] Unsupported board ID: $BOARD_ID" >&2
-    echo "[ERROR] Supported boards: efr32mg24-dk, nrf21540-dk" >&2
-    exit 1
-fi
+case "$BOARD_ID" in
+    xg24_ek2703a)
+        JLINK_DEVICE="EFR32MG24BxxxF1536"
+        ;;
+    nrf21540dk)
+        JLINK_DEVICE="nRF52840_xxAA"
+        ;;
+    *)
+        echo "[ERROR] Unsupported board ID: $BOARD_ID" >&2
+        echo "[ERROR] Supported boards: xg24_ek2703a, nrf21540dk" >&2
+        exit 1
+        ;;
+esac
 
 # Set firmware filename based on board ID
 FIRMWARE_HEX="${BOARD_ID}.hex"
@@ -78,20 +87,40 @@ echo "[INFO] Firmware: $FIRMWARE_HEX"
 # =============================================================================
 # Download and Extract JLink Tools
 # =============================================================================
-if [[ -d "$TAR_DIR" ]]; then
-    echo "[INFO] JLink tools already exist, skipping download"
+# Prefer system JLinkExe if present
+SYSTEM_JLINK="$(command -v JLinkExe || true)"
+
+if [[ -n "$SYSTEM_JLINK" ]]; then
+    echo "[INFO] Using system JLinkExe at: $SYSTEM_JLINK"
+    JLINK_EXE="$SYSTEM_JLINK"
 else
-    echo "[INFO] Downloading JLink tools package..."
-    if ! wget -q "$BASE_URL/$JLINK_TAR" -O "$JLINK_TAR"; then
-        echo "[ERROR] Failed to download JLink tools" >&2
-        exit 1
+    echo "[INFO] System JLinkExe not found; using bundled tools"
+
+    if [[ -d "$TAR_DIR" ]]; then
+        echo "[INFO] JLink tools already exist, skipping download"
+    else
+        echo "[INFO] Downloading JLink tools package..."
+        if ! wget -q "$BASE_URL/$JLINK_TAR" -O "$JLINK_TAR"; then
+            echo "[ERROR] Failed to download JLink tools" >&2
+            exit 1
+        fi
+
+        if ! tar -xzf "$JLINK_TAR"; then
+            echo "[ERROR] Failed to extract JLink tools" >&2
+            exit 1
+        fi
     fi
 
-    echo "[INFO] Extracting JLink tools..."
-    if ! tar -xzf "$JLINK_TAR"; then
-        echo "[ERROR] Failed to extract JLink tools" >&2
+    JLINK_EXE="$TAR_DIR/JLinkExe"
+
+    if [[ ! -f "$JLINK_EXE" ]]; then
+        echo "[ERROR] JLink executable not found at $JLINK_EXE" >&2
         exit 1
     fi
+    if [[ ! -x "$JLINK_EXE" ]]; then
+        chmod +x "$JLINK_EXE"
+    fi
+    export PATH="$(pwd)/$TAR_DIR:$PATH"
 fi
 
 # =============================================================================
@@ -111,36 +140,15 @@ fi
 # =============================================================================
 # Flash Firmware
 # =============================================================================
-if [[ ! -f "$JLINK_EXE" ]]; then
-    echo "[ERROR] JLink executable not found at $JLINK_EXE" >&2
-    exit 1
-fi
-
-chmod +x "$JLINK_EXE"
-
 echo "[INFO] Flashing firmware using JLinkExe..."
 
-# Board-specific JLink parameters
-if [[ "$BOARD_ID" == "efr32mg24-dk" ]]; then
-    echo "[INFO] Using EFR32MG24-DK parameters..."
-    if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
-        -device EFR32MG24BxxxF1536 \
-        -if SWD \
-        -speed 4000 \
-        -autoconnect 1; then
-        echo "[ERROR] Firmware flashing failed" >&2
-        exit 1
-    fi
-elif [[ "$BOARD_ID" == "nrf21540-dk" ]]; then
-    echo "[INFO] Using nRF21540-DK parameters..."
-    if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | "$JLINK_EXE" \
-        -device nRF52840_xxAA \
-        -if SWD \
-        -speed 4000 \
-        -autoconnect 1; then
-        echo "[ERROR] Firmware flashing failed" >&2
-        exit 1
-    fi
+if ! printf "r\nloadfile $FIRMWARE_HEX\nr\ng\nqc\n" | JLinkExe \
+      -device "$JLINK_DEVICE" \
+      -if SWD \
+      -speed 4000 \
+      -autoconnect 1; then
+    echo "[ERROR] Firmware flashing failed" >&2
+    exit 1
 fi
 
 # =============================================================================
@@ -212,7 +220,7 @@ echo "[INFO] Running Python provisioning with device ID and key..."
 echo "[INFO] Using serial port: $SERIAL_PORT"
 echo "[INFO] Using Python from virtual environment: $(which python3)"
 
-if ! python3 "$PYTHON_SCRIPT" --base64 "$KEY" "$SERIAL_PORT"; then
+if ! python3 "$PYTHON_SCRIPT" --base64 "$KEY" "$SERIAL_PORT" "$JLINK_DEVICE"; then
     echo "[ERROR] Python provisioning failed" >&2
     exit 1
 fi
