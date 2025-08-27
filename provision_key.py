@@ -5,7 +5,7 @@ Device Key Provisioning Script for Hubble TLDM
 This script provisions a cryptographic key to a device using serial communication.
 The device must be listening on the serial port and be ready to receive the key.
 
-Usage: provision_key.py [-h] [-b] <key> <serial_port>
+Usage: provision_key.py [-h] [-b] <key> <serial_port> <device_type>
 """
 
 import argparse
@@ -22,15 +22,13 @@ import subprocess
 # Constants
 # =============================================================================
 SLEEP_TIME = 0.05
-DEVICE_TYPE = "EFR32MG24BXXXF1536"
-CONNECTION_SPEED = "4000"
 RESET_DELAY = 3
 
 
 # =============================================================================
 # Main Functions
 # =============================================================================
-def reset_device() -> None:
+def reset_device(device_type: str) -> None:
     """Reset the device using JLinkExe.
     
     Raises:
@@ -39,7 +37,7 @@ def reset_device() -> None:
     try:
         subprocess.run(
             ["JLinkExe"],
-            input="connect\nEFR32MG24BXXXF1536\nS\n4000\nReset\nexit\n",
+            input=f"connect\n{device_type}\nS\n4000\nReset\nexit\n",
             text=True,
             check=True,
             capture_output=True,
@@ -49,7 +47,7 @@ def reset_device() -> None:
         sys.exit(1)
 
 
-def provision_key(key_string: str, serial_port: str, base64_encoded: bool) -> None:
+def provision_key(key_string: str, serial_port: str, base64_encoded: bool, device_type: str) -> None:
     """Provision a cryptographic key to the device.
     
     Args:
@@ -62,7 +60,7 @@ def provision_key(key_string: str, serial_port: str, base64_encoded: bool) -> No
     """
     # Reset device first
     print("[INFO] Resetting device...")
-    reset_device()
+    reset_device(device_type)
     
     # Give enough time for reset
     print(f"[INFO] Waiting {RESET_DELAY} seconds for device reset...")
@@ -145,6 +143,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         default=False
     )
+
+    parser.add_argument(
+        "device",
+        help="The JLink device type to provision"
+    )
     
     return parser.parse_args()
 
@@ -153,7 +156,7 @@ def main() -> None:
     """Main entry point for the script."""
     try:
         args = parse_arguments()
-        provision_key(args.key, args.serial, args.base64)
+        provision_key(args.key, args.serial, args.base64, args.device)
     except KeyboardInterrupt:
         print("\n[INFO] Operation cancelled by user", file=sys.stderr)
         sys.exit(1)
