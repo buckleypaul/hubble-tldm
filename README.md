@@ -18,7 +18,7 @@ Everything is automatically downloaded and configured during the provisioning pr
 Provision a device with a single command - no tools to install first:
 
 ```bash
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg24_ek2703a
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg24_ek2703a
 ```
 
 ## The Tool-Less Advantage
@@ -40,16 +40,13 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 The provisioning script automatically:
 
 1. **Downloads JLink tools** - Professional debugging and programming tools
-2. **Downloads firmware** - Board-specific firmware image (e.g., `xg24_ek2703a.hex`)
-3. **Sets up Python environment** - Creates virtual environment and installs dependencies
-4. **Flashes firmware** - Programs the device with the specified firmware
-5. **Detects serial port** - Automatically finds USB modem devices
-6. **Provisions device key** - Securely transfers cryptographic keys to the device
+2. **Downloads firmware** - Board-specific binary firmware image (e.g., `xg24_ek2703a.bin`)
+3. **Merges device key** - Embeds the cryptographic key directly into the firmware at a specified offset
+4. **Flashes merged firmware** - Programs the device with the firmware containing the embedded key
 
 ## Requirements
 
-- **Python 3.x** (tested with Python 3.9.6) - Only requirement that needs to be pre-installed
-- **System tools**: `wget`, `curl`, `tar`, `python3`, `pip` - Usually available by default
+- **System tools**: `wget`, `curl`, `tar`, `base64` - Usually available by default
 - **Hardware**: JLink-compatible device connected via USB
 
 ## Supported Boards
@@ -64,7 +61,7 @@ Currently, only these boards are supported:
 ### Basic Provisioning
 
 ```bash
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id <device-id> --key <key> --board-id <board-name>
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id <device-id> --key <key> --board-id <board-name>
 ```
 
 ### Parameters
@@ -72,15 +69,16 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 - **`--device-id`**: Unique identifier for the device (UUID format)
 - **`--key`**: Cryptographic key for the device (base64 encoded)
 - **`--board-id`**: Board identifier (must be `xg24_ek2703a` or `nrf21540dk`)
+- **`--key-offset`**: (Optional) Memory offset where key should be stored (default: 0x2000)
 
 ### Examples
 
 ```bash
 # Silicon Labs EFR32MG24 Development Kit
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg24_ek2703a
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg24_ek2703a
 
 # Nordic nRF21540 Development Kit
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id nrf21540dk
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id nrf21540dk
 ```
 
 ## How Tool-Less Management Works
@@ -88,14 +86,12 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 ### 1. Automatic Tool Downloads
 The script downloads all necessary components from GitHub:
 - **JLink tools**: Professional debugging suite (no manual installation)
-- **Firmware images**: Board-specific `.hex` files (no manual download)
-- **Python scripts**: Provisioning and key management (no manual setup)
-- **Dependencies**: Python package requirements (no manual pip install)
+- **Firmware images**: Board-specific `.bin` files (no manual download)
+- **No Python dependencies**: Direct binary firmware manipulation
 
 ### 2. Zero-Configuration Environment Setup
-- Creates Python virtual environment (`.venv`) automatically
-- Installs required packages (`pyserial` for serial communication)
-- Downloads and extracts JLink tools
+- Downloads and extracts JLink tools automatically
+- No Python environment setup required
 - No configuration files or manual setup required
 
 ### 3. Intelligent Device Programming
@@ -105,10 +101,10 @@ The script downloads all necessary components from GitHub:
 - Configurable connection parameters (SWD, speed, etc.)
 - No manual JLink configuration needed
 
-### 4. Smart Serial Communication
-- Automatically detects USB modem devices (`/dev/tty.usbmodem*`)
-- Establishes serial connection for key provisioning
-- Handles base64-encoded cryptographic keys
-- No manual port configuration required
+### 4. Direct Firmware Key Embedding
+- Embeds base64-encoded cryptographic keys directly into firmware
+- Configurable key storage offset (default: 0x2000)
+- No serial communication or port detection required
+- Creates merged firmware file for programming
 
 ## File Structure
