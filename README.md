@@ -40,7 +40,7 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 The provisioning script automatically:
 
 1. **Downloads JLink tools** - Professional debugging and programming tools
-2. **Downloads firmware** - Board-specific binary firmware image (e.g., `xg24_ek2703a.bin`)
+2. **Downloads firmware** - Board-specific binary firmware image (e.g., `xg24_ek2703a.elf`)
 3. **Merges device key** - Embeds the cryptographic key directly into the firmware at a specified offset
 4. **Flashes merged firmware** - Programs the device with the firmware containing the embedded key
 
@@ -54,6 +54,7 @@ The provisioning script automatically:
 Currently, only these boards are supported:
 
 - **[`xg24_ek2703a`](https://docs.zephyrproject.org/latest/boards/silabs/dev_kits/xg24_ek2703a/doc/index.html)**: Silicon Labs EFR32MG24 Development Kit
+- **[`xg22_ek4108a`](https://www.silabs.com/development-tools/wireless/bluetooth/bg22-explorer-kit?tab=overview)**: Silicon Labs EFR32BG22 Development Kit
 - **[`nrf21540dk`](https://docs.zephyrproject.org/latest/boards/nordic/nrf21540dk/doc/index.html)**: Nordic nRF21540 Development Kit
 
 ## Usage
@@ -68,7 +69,7 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 
 - **`--device-id`**: Unique identifier for the device (UUID format)
 - **`--key`**: Cryptographic key for the device (base64 encoded)
-- **`--board-id`**: Board identifier (must be `xg24_ek2703a` or `nrf21540dk`)
+- **`--board-id`**: Board identifier (must be `xg24_ek2703a`, `xg22_ek4108a`, or `nrf21540dk`)
 - **`--key-offset`**: (Optional) Memory offset where key should be stored (default: 0x2000)
 - **`--provision-option`** Provision option (optional: merge|serial, default: merge)
 
@@ -77,6 +78,9 @@ curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/m
 ```bash
 # Silicon Labs EFR32MG24 Development Kit
 curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg24_ek2703a
+
+# Silicon Labs EFR32BG22 Development Kit
+curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id xg22_ek4108a
 
 # Nordic nRF21540 Development Kit
 curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/provision_merge.sh | bash -s -- --device-id 214cca30-ca6f-48c2-8d7c-55368276471c --key OTQhLHNU385buqYhthomsmwvd+sGRqoE5QIAXcBGg= --board-id nrf21540dk
@@ -98,6 +102,8 @@ The script downloads all necessary components from GitHub:
 ### 3. Intelligent Device Programming
 - Flashes firmware using automatically downloaded JLinkExe
 - **xg24_ek2703a**: Uses EFR32MG24BxxxF1536 device type
+- **xg22_ek4108a**: Uses EFR32BG22C224F512IM40 device type
+- **xg22_ek4108a**: Uses EFR32BG22C224F512IM40 device type
 - **nRF21540DK**: Uses nRF52840_xxAA device type
 - Configurable connection parameters (SWD, speed, etc.)
 - No manual JLink configuration needed

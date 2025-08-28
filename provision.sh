@@ -81,9 +81,12 @@ case "$BOARD_ID" in
     nrf21540dk)
         JLINK_DEVICE="nRF52840_xxAA"
         ;;
+    xg22_ek4108a)
+        JLINK_DEVICE="EFR32BG22C224F512IM40"
+        ;;
     *)
         echo "[ERROR] Unsupported board ID: $BOARD_ID" >&2
-        echo "[ERROR] Supported boards: xg24_ek2703a, nrf21540dk" >&2
+        echo "[ERROR] Supported boards: xg24_ek2703a, nrf21540dk, xg22_ek4108a" >&2
         exit 1
         ;;
 esac
