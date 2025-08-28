@@ -9,7 +9,8 @@ set -euo pipefail
 # =============================================================================
 BASE_URL="https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master"
 JLINK_TAR="jlink.tar.gz"
-PYTHON_SCRIPT="provision_key.py"
+PYTHON_SCRIPT_SERIAL="provision_key.py"
+PYTHON_SCRIPT_MERGE="embed-key.py"
 TAR_DIR="JLink_V862"
 JLINK_EXE=""
 
@@ -160,11 +161,21 @@ fi
 echo "[INFO] Setting up Python virtual environment..."
 
 # Download provision_key.py if it doesn't exist
-if [[ ! -f "$PYTHON_SCRIPT" ]]; then
-    echo "[INFO] Downloading $PYTHON_SCRIPT..."
-    if ! wget -q "$BASE_URL/$PYTHON_SCRIPT" -O "$PYTHON_SCRIPT"; then
-        echo "[ERROR] Failed to download $PYTHON_SCRIPT" >&2
-        exit 1
+if [[ "$PROVISION_OPTION" == "merge" ]]; then
+    if [[ ! -f "$PYTHON_SCRIPT_MERGE" ]]; then
+        echo "[INFO] Downloading $PYTHON_SCRIPT_MERGE..."
+        if ! wget -q "$BASE_URL/$PYTHON_SCRIPT_MERGE" -O "$PYTHON_SCRIPT_MERGE"; then
+            echo "[ERROR] Failed to download $PYTHON_SCRIPT_MERGE" >&2
+            exit 1
+        fi
+    fi
+else
+    if [[ ! -f "$PYTHON_SCRIPT_SERIAL" ]]; then
+        echo "[INFO] Downloading $PYTHON_SCRIPT_SERIAL..."
+        if ! wget -q "$BASE_URL/$PYTHON_SCRIPT_SERIAL" -O "$PYTHON_SCRIPT_SERIAL"; then
+            echo "[ERROR] Failed to download $PYTHON_SCRIPT_SERIAL" >&2
+            exit 1
+        fi
     fi
 fi
 
@@ -249,7 +260,7 @@ if [[ "$PROVISION_OPTION" == "serial" ]]; then
     echo "[INFO] Using serial port: $SERIAL_PORT"
     echo "[INFO] Using Python from virtual environment: $(which python3)"
 
-    if ! python3 "$PYTHON_SCRIPT" --base64 "$KEY" "$SERIAL_PORT" "$JLINK_DEVICE"; then
+    if ! python3 "$PYTHON_SCRIPT_SERIAL" --base64 "$KEY" "$SERIAL_PORT" "$JLINK_DEVICE"; then
         echo "[ERROR] Python provisioning failed" >&2
         exit 1
     fi
