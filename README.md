@@ -1,6 +1,6 @@
 # Hubble TLDM - Tool-Less Device Management
 
-A streamlined device provisioning system that eliminates the need for manual tool installation and setup. TLDM (Tool-Less Device Management) automatically downloads all necessary tools, firmware, and dependencies, making device provisioning as simple as running a single command.
+A streamlined device provisioning system for the **Hubble Terrestrial Network** that eliminates the need for manual tool installation and setup. TLDM (Tool-Less Device Management) automatically downloads all necessary tools, firmware, and dependencies, making device provisioning as simple as running a single command.
 
 ## What is Tool-Less Device Management?
 
