@@ -7,18 +7,12 @@ set -euo pipefail
 # =============================================================================
 # Configuration
 # =============================================================================
-BASE_URL="https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master"
 JLINK_TAR="jlink.tar.gz"
 TAR_DIR="JLink_V862"
 JLINK_EXE=""
 
 # Key storage configuration
 KEY_LENGTH=32         # Key length in bytes (256-bit key)
-
-if [[ -z "$KEY_OFFSET" ]] || [[ -z "$UTC_OFFSET" ]]; then
-    echo "[ERROR] KEY_OFFSET and UTC_OFFSET must be set" >&2
-    exit 1
-fi
 
 # =============================================================================
 # Command Line Argument Parsing
@@ -86,30 +80,10 @@ case "$BOARD_ID" in
         ;;
 esac
 
-# Set firmware filename based on board ID
-echo "Firmware binary: $FIRMWARE_BIN"
-if [ -n "${FIRMWARE_BIN+x}" ]; then
-    echo "[INFO] Using set local binary $FIRMWARE_BIN"
-else
-    FIRMWARE_BIN="${BOARD_ID}.elf"
-fi
-
-MERGED_FIRMWARE_BIN="${BOARD_ID}_merged.elf"
-
-echo "[INFO] Starting device provisioning..."
-
-# Check if binary firmware is available
-if [[ -f "$FIRMWARE_BIN" ]]; then
-    echo "[INFO] Using binary firmware: $FIRMWARE_BIN"
-    echo "[INFO] Output file: $MERGED_FIRMWARE_BIN"
-else
-    echo "[ERROR] Binary firmware file not found: $FIRMWARE_BIN" >&2
-    exit 1
-fi
-
 # =============================================================================
 # Register new device
 # =============================================================================
+echo "[INFO] Registering new device from Hubble..."
 
 API="https://api.hubble.com/api/v2/org/$ORG_ID/devices"
 
@@ -145,6 +119,18 @@ else
 fi
 
 # =============================================================================
+# Set the base URL to pull from if it isn't set
+# =============================================================================
+if [ -n "${HUBBLE_TLDM_REPO_BASE_URL+x}" ]; then
+    echo "[INFO] Overwriting default URL to pull data from: $HUBBLE_TLDM_REPO_BASE_URL"
+else
+    HUBBLE_TLDM_REPO_BASE_URL="https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master"
+    echo "[INFO] HUBBLE_TLDM_REPO_BASE_URL not set, using $HUBBLE_TLDM_REPO_BASE_URL"
+fi
+
+echo "[INFO] Pulling binary and metadata from $HUBBLE_TLDM_REPO_BASE_URL"
+
+# =============================================================================
 # Download and Extract JLink Tools
 # =============================================================================
 # Prefer system JLinkExe if present
@@ -160,7 +146,7 @@ else
         echo "[INFO] JLink tools already exist, skipping download"
     else
         echo "[INFO] Downloading JLink tools package..."
-        if ! wget -q "$BASE_URL/$JLINK_TAR" -O "$JLINK_TAR"; then
+        if ! wget -q "$HUBBLE_TLDM_REPO_BASE_URL/$JLINK_TAR" -O "$JLINK_TAR"; then
             echo "[ERROR] Failed to download JLink tools" >&2
             exit 1
         fi
@@ -186,20 +172,56 @@ fi
 # =============================================================================
 # Download Firmware Image
 # =============================================================================
+
+# Set firmware filename based on board ID
+if [ -n "${FIRMWARE_BIN+x}" ]; then
+    echo "[INFO] Using local binary $FIRMWARE_BIN"
+else
+    echo "[INFO] FIRMWARE_BIN env var not set, pulling from Hubble repo"
+    FIRMWARE_BIN="${BOARD_ID}.elf"
+fi
+
+MERGED_FIRMWARE_BIN="${BOARD_ID}_merged.elf"
+
 # Download binary firmware if it doesn't exist
 if [[ ! -f "$FIRMWARE_BIN" ]]; then
     echo "[INFO] Downloading binary firmware for board: $BOARD_ID..."
-    if ! wget -q "$BASE_URL/$FIRMWARE_BIN" -O "$FIRMWARE_BIN"; then
+    if ! wget -q "$HUBBLE_TLDM_REPO_BASE_URL/merge/$FIRMWARE_BIN" -O "$FIRMWARE_BIN"; then
         echo "[ERROR] Failed to download binary firmware: $FIRMWARE_BIN" >&2
-        echo "[ERROR] Make sure the binary firmware exists at: $BASE_URL/$FIRMWARE_BIN" >&2
+        echo "[ERROR] Make sure the binary firmware exists at: $HUBBLE_TLDM_REPO_BASE_URL/$FIRMWARE_BIN" >&2
         exit 1
     fi
-    echo "[INFO] Binary firmware downloaded successfully"
+    echo "[SUCCESS] Binary firmware downloaded successfully"
 fi
 
 # Copy original file to output
 cp "$FIRMWARE_BIN" "$MERGED_FIRMWARE_BIN"
-echo "[SUCCESS] Created merged binary file: $MERGED_FIRMWARE_BIN"
+
+# =============================================================================
+# Get UTC and key offsets in binary from metadata files
+# =============================================================================
+echo "[INFO] Getting binary metadata"
+
+# Pull the json metadata file
+offset_metadata_url="$HUBBLE_TLDM_REPO_BASE_URL/merge/$BOARD_ID.json"
+#offset_json="$(wget -qO- "$offset_metadata_url")"
+
+if ! offset_json=$(wget -qO- --tries=1 --timeout=10 "$offset_metadata_url"); then
+    code=$?
+    echo "[ERROR] Failed to fetch $offset_metadata_url (exit code $code)" >&2
+    exit 1
+fi
+
+# Parse the UTC and key offset values from the returned json
+UTC_OFFSET=$(jq -r '.utc_offset' <<<"$offset_json")
+KEY_OFFSET=$(jq -r '.key_offset' <<<"$offset_json")
+
+if [[ -n "$UTC_OFFSET" && "$KEY_OFFSET" != "null" ]]; then
+  echo "[SUCCESS] Binary metadata acquired"
+else
+  echo "[ERROR] Failed to get offsets for binary merges" >&2
+  exit 1
+fi
 
 # =============================================================================
 # Merge Key into Firmware
@@ -246,6 +268,7 @@ offset_decimal_utc=$((UTC_OFFSET))
 
 # Get the UTC time in milliseconds (approximately)
 utc_time=$(($(date +%s)*1000))
+echo "[INFO] Current UTC time: $utc_time"
 
 # Check if UTC fits at offset
 if [[ $((offset_decimal_utc + 8)) -gt $file_size ]]; then
@@ -276,11 +299,17 @@ if ! printf "r\nloadfile $MERGED_FIRMWARE_BIN\nr\ng\nqc\n" | JLinkExe \
       -device "$JLINK_DEVICE" \
       -if SWD \
       -speed 4000 \
-      -autoconnect 1; then
+      -autoconnect 1 \
+      -NoGui 1 >/dev/null 2>&1; then
     echo "[ERROR] Firmware flashing failed" >&2
     exit 1
 fi
 
+echo "[SUCCESS] Cleaning up (deleting) merged binary file"
+rm $MERGED_FIRMWARE_BIN
+
+echo ""
 echo "[SUCCESS] Device programmed successfully!"
-echo "[INFO] Device ID: $DEVICE_ID has been provisioned with key at offset $KEY_OFFSET"
-echo "[INFO] Merged binary firmware saved as: $MERGED_FIRMWARE_BIN"
+echo "    Device ID: $DEVICE_ID"
+echo "    Device key: $DEVICE_KEY"
+echo " Please store this key and device ID securly."
