@@ -13,41 +13,40 @@ TAR_DIR="JLink_V862"
 JLINK_EXE=""
 
 # Key storage configuration
-KEY_OFFSET="0x2000"  # Adjust this offset based on your firmware requirements
 KEY_LENGTH=32         # Key length in bytes (256-bit key)
+
+if [[ -z "$KEY_OFFSET" ]] || [[ -z "$UTC_OFFSET" ]]; then
+    echo "[ERROR] KEY_OFFSET and UTC_OFFSET must be set" >&2
+    exit 1
+fi
 
 # =============================================================================
 # Command Line Argument Parsing
 # =============================================================================
-DEVICE_ID=""
-KEY=""
 BOARD_ID=""
+ORG_ID=""
+BEARER_TOKEN=""
 JLINK_DEVICE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --device-id)
-            DEVICE_ID="$2"
-            shift 2
-            ;;
-        --key)
-            KEY="$2"
-            shift 2
-            ;;
         --board-id)
             BOARD_ID="$2"
             shift 2
             ;;
-        --key-offset)
-            KEY_OFFSET="$2"
+        --org-id)
+            ORG_ID="$2"
+            shift 2
+            ;;
+        --bearer-token)
+            BEARER_TOKEN="$2"
             shift 2
             ;;
         --help|-h)
-            echo "Usage: $0 --device-id <id> --key <key> --board-id <board> [--key-offset <offset>]"
-            echo "  --device-id    Device identifier (required)"
-            echo "  --key          Device key in base64 format (required)"
+            echo "Usage: $0 --board-id <board>"
+            echo "  --bearer-token API token (required)"
+            echo "  --org-id       Organization ID (required)"
             echo "  --board-id     Board identifier (required, e.g., efr32mg24-dk)"
-            echo "  --key-offset   Key storage offset in hex (default: 0x2000)"
             echo "  --help, -h     Show this help message"
             exit 0
             ;;
@@ -62,10 +61,9 @@ done
 # =============================================================================
 # Validation
 # =============================================================================
-if [[ -z "$DEVICE_ID" ]] || [[ -z "$KEY" ]] || [[ -z "$BOARD_ID" ]]; then
-    echo "[ERROR] --device-id, --key, and --board-id are required" >&2
-    echo "Usage: $0 --device-id <id> --key <key> --board-id <board>" >&2
-    echo "Note: Key should be provided in base64 format" >&2
+if [[ -z "$BOARD_ID" ]] || [[ -z "$ORG_ID" ]] || [[ -z "$BEARER_TOKEN" ]]; then
+    echo "[ERROR] --board-id, --org-id, and --bearer-token are required" >&2
+    echo "Usage: $0 --board-id <board> --org-id <org-id> --bearer-token <token>" >&2
     echo "Use --help for more information" >&2
     exit 1
 fi
@@ -89,13 +87,16 @@ case "$BOARD_ID" in
 esac
 
 # Set firmware filename based on board ID
-FIRMWARE_BIN="${BOARD_ID}.elf"
+echo "Firmware binary: $FIRMWARE_BIN"
+if [ -n "${FIRMWARE_BIN+x}" ]; then
+    echo "[INFO] Using set local binary $FIRMWARE_BIN"
+else
+    FIRMWARE_BIN="${BOARD_ID}.elf"
+fi
+
 MERGED_FIRMWARE_BIN="${BOARD_ID}_merged.elf"
 
 echo "[INFO] Starting device provisioning..."
-echo "[INFO] Device ID: $DEVICE_ID"
-echo "[INFO] Board ID: $BOARD_ID"
-echo "[INFO] Key offset: $KEY_OFFSET"
 
 # Check if binary firmware is available
 if [[ -f "$FIRMWARE_BIN" ]]; then
@@ -104,6 +105,43 @@ if [[ -f "$FIRMWARE_BIN" ]]; then
 else
     echo "[ERROR] Binary firmware file not found: $FIRMWARE_BIN" >&2
     exit 1
+fi
+
+# =============================================================================
+# Register new device
+# =============================================================================
+
+API="https://api.hubble.com/api/v2/org/$ORG_ID/devices"
+
+# Send the API request to get new device ID and key
+resp_json="$(
+  wget -qO- --content-on-error --no-check-certificate \
+    --method POST \
+    --timeout=0 \
+    --header 'Content-Type: application/json' \
+    --header 'Accept: application/json' \
+    --header "Authorization: Bearer $BEARER_TOKEN" \
+    --body-data '{
+      "n_devices": 1,
+      "encryption": "AES-256-CTR"
+    }' \
+    "$API"
+)"
+
+# Extract the device ID and key from the returned JSON
+# devices is an array but we are only requesting a single device
+DEVICE_ID=$(jq -r '.devices[0].device_id' <<<"$resp_json")
+DEVICE_KEY=$(jq -r '.devices[0].key' <<<"$resp_json")
+
+if [[ -n "$DEVICE_ID" && "$DEVICE_ID" != "null" ]]; then
+  echo "[SUCCESS] Registered new device"
+  echo "          Device ID:  $DEVICE_ID"
+  echo "          Device Key: $DEVICE_KEY"
+else
+  echo "[ERROR] Failed to register device from backend" >&2
+  echo "        Check that your organization ID and bearer token are valid" >&2
+  echo "        Your token may be expired" >&2
+  exit 1
 fi
 
 # =============================================================================
@@ -172,7 +210,7 @@ echo "[INFO] Merging key into firmware at offset $KEY_OFFSET..."
 offset_decimal_key=$((KEY_OFFSET))
 
 # Convert key to binary bytes
-key_binary=$(printf '%s' "$KEY" | base64 -D)
+key_binary=$(printf '%s' "$DEVICE_KEY" | base64 -D)
 
 # Get file size
 file_size=$(stat -f%z "$FIRMWARE_BIN" 2>/dev/null || stat -c%s "$FIRMWARE_BIN" 2>/dev/null)
