@@ -90,7 +90,12 @@ if ! command -v pipx >/dev/null 2>&1; then
   ok "Installing pipx"
   brew install pipx
   pipx ensurepath
-  exit 1
+  source $SHELL_RC
+fi
+
+# SEGGER J-Link (required by pylink)
+if ! command -v JLinkExe >/dev/null 2>&1; then
+  brew install --cask segger-jlink
 fi
 
 usage() {
@@ -104,8 +109,8 @@ USAGE
 }
 
 BOARD="$1"
-TOKEN="$2"
-ORG="$3"
+ORG="$2"
+TOKEN="$3"
 
 # Basic validation
 if [[ -z "$BOARD" || -z "$TOKEN" || -z "$ORG" ]]; then
@@ -115,5 +120,5 @@ if [[ -z "$BOARD" || -z "$TOKEN" || -z "$ORG" ]]; then
 fi
 
 exec pipx run --no-cache \
-  --spec "git+https://github.com/buckleypaul/sdk.git@review.python-scripts#subdirectory=python" \
-  hubble demo flash "$BOARD" -t "$TOKEN" -o "$ORG"
+  --spec "git+https://github.com/HubbleNetwork/hubble-tldm.git@master#subdirectory=python" \
+  hubbledemo flash "$BOARD" -t "$TOKEN" -o "$ORG"

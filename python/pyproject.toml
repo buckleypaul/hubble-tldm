@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyhubbledemo"
+version = "0.0.1"
+requires-python = ">=3.9"
+authors = [
+  { name="Paul Buckley", email="paul@hubble.com" },
+]
+readme = "README.md"
+description = "Hubble demo functionality for flashing and provisioning boards"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "click",
+  "pylink-square",
+  "pyelftools",
+  "pyhubblenetwork",
+]
+
+[project.scripts]
+hubbledemo = "hubbledemo.cli:main"     # installs a `hubbledemo` console script
+
+# ---- Hatchling build config (src layout) ----
+[tool.hatch.build.targets.wheel]
+packages = ["src/hubbledemo"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+]
