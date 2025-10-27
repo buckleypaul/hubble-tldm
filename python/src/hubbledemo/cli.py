@@ -6,6 +6,7 @@ import json
 import time
 import base64
 import sys
+import petname
 from datetime import timezone, datetime
 from typing import Optional
 from hubblenetwork import Organization
@@ -59,11 +60,23 @@ def flash(board: str, name: str = None, org_id: str = None, token: str = None) -
     org_id, token = _get_org_and_token(org_id, token)
     org = Organization(org_id=org_id, api_token=token)
 
-    click.secho(f'[INFO] Registering new device with name "{name}"... ', nl=False)
+    click.secho(f"[INFO] Organization info acquired:")
+    click.secho(f"\tID: {org.org_id}")
+    click.secho(f"\tName: {org.name}")
+    click.secho(f"\tEnvironment: {org.env}")
+
+    click.secho(f'[INFO] Registering new device"... ', nl=False)
     device = org.register_device()
     click.secho("[SUCCESS]")
     click.secho(f"\tDevice ID:  {device.id}")
     click.secho(f"\tDevice Key: {device.key}")
+
+    if not name:
+        name = petname.generate(words=3)
+        click.secho(f'[INFO] No name supplied. Naming device "{name}"')
+    click.secho(f"[INFO] Setting device name... ", nl=False)
+    org.set_device_name(device_id=device.id, name=name)
+    click.secho("[SUCCESS]")
 
     click.secho(f"[INFO] Retrieving binary for {board}... ", nl=False)
     buf = fetch_elf(board=board)
@@ -77,7 +90,7 @@ def flash(board: str, name: str = None, org_id: str = None, token: str = None) -
     flash_elf(board=board, buf=buf)
     click.secho("[SUCCESS]")
 
-    click.secho(f"{board} successfully flashed and provisioned!")
+    click.secho(f"\n{board} successfully flashed and provisioned!")
 
 
 def main(argv: Optional[list[str]] = None) -> int:

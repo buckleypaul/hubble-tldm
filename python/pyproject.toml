@@ -19,6 +19,7 @@ classifiers = [
 ]
 dependencies = [
   "click",
+  "petname",
   "pylink-square",
   "pyelftools",
   "pyhubblenetwork",
