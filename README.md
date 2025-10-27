@@ -1,5 +1,9 @@
 # Hubble TLDM - Tool-Less Device Management
 
+[![PyPI](https://img.shields.io/pypi/v/pyhubbledemo.svg)](https://pypi.org/project/pyhubbledemo)
+[![Python](https://img.shields.io/pypi/pyversions/pyhubbledemo.svg)](https://pypi.org/project/pyhubbledemo)
+[![License](https://img.shields.io/github/license/HubbleNetwork/pyhubblenetwork)](LICENSE)
+
 A streamlined device provisioning system for the **Hubble Terrestrial Network** that eliminates the need for manual tool installation and setup. TLDM (Tool-Less Device Management) automatically downloads all necessary tools, firmware, and dependencies, making device provisioning as simple as running a single command.
 
 ## Quick Start
@@ -14,15 +18,24 @@ Steps to run:
 1. Go!
 
 ### MacOS (Apple Silicon)
+
+*Note: homebrew must be installed before running. See [here](https://brew.sh/) for installation instructions.*
+
 ```bash
-curl -s https://raw.githubusercontent.com/HubbleNetwork/hubble-tldm/refs/heads/master/run_macos.sh | bash -s -- <BOARD> <ORG_ID> <API_TOKEN>
+brew install pipx && brew install segger-jlink && pipx run pyhubbledemo flash <BOARD> -o <ORG_ID> -t <API_TOKEN>
+```
+*Note: You will be prompted for a password to install segger-jlink tools (used to flash the firmware to your board)*
+
+If desired, you can optionally install pyhubbledemo via pipx and use it from the command line:
+```bash
+pipx install pyhubbledemo
+hubbledemo flash <BOARD> -o <ORG_ID> -t <API_TOKEN>
 ```
 
-This will install the following (if not previously installed):
-* **[brew](https://brew.sh/)**: package manager necessary if Python is not installed
-* **[python3](https://formulae.brew.sh/formula/python@3.14#default)**: the provisioning script uses this.
-* **[pipx](https://formulae.brew.sh/formula/pipx)**: runs the python script in a virtual environment so it doesn't impact the rest of your installation
-* **[segger-jlink](https://formulae.brew.sh/cask/segger-jlink#default)**: necessary for flashing devices
+Or if you do not wish to install, you can run the command without installation:
+```bash
+pipx run pyhubbledemo flash <BOARD> -o <ORG_ID> -t <API_TOKEN>
+```
 
 ## Supported Boards
 
