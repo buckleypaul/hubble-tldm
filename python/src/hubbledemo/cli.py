@@ -9,8 +9,8 @@ import sys
 import petname
 from datetime import timezone, datetime
 from typing import Optional
-from hubblenetwork import Organization
-from hubbledemo import flash_elf, fetch_elf, patch_elf
+from hubblenetwork import Organization, Credentials
+from hubbledemo import flash_elf, fetch_elf, patch_elf, probe_device
 
 
 def _get_env_or_fail(name: str) -> str:
@@ -38,6 +38,19 @@ def cli() -> None:
     # top-level group; subcommands are added below
 
 
+@cli.command("probe")
+def probe() -> None:
+    if probe_device():
+        click.echo("[SUCCESS] Device detected.")
+    else:
+        click.secho(
+            "[ERROR] Failed to connect to device. Check your connection.",
+            fg="red",
+            err=True,
+        )
+        return 2
+
+
 @cli.command("flash")
 @click.argument("board", type=str)
 @click.option(
@@ -57,13 +70,21 @@ def cli() -> None:
     help="Token (if not using HUBBLE_API_TOKEN env var)",
 )
 def flash(board: str, name: str = None, org_id: str = None, token: str = None) -> None:
+    if not probe_device():
+        click.secho(
+            "[ERROR] Failed to connect to device. Check your connection.",
+            fg="red",
+            err=True,
+        )
+        return 2
+
     org_id, token = _get_org_and_token(org_id, token)
-    org = Organization(org_id=org_id, api_token=token)
+    org = Organization(Credentials(org_id=org_id, api_token=token))
 
     click.secho(f"[INFO] Organization info acquired:")
-    click.secho(f"\tID: {org.org_id}")
+    click.secho(f"\tID: {org.credentials.org_id}")
     click.secho(f"\tName: {org.name}")
-    click.secho(f"\tEnvironment: {org.env}")
+    click.secho(f"\tEnvironment: {org.env.name}")
 
     click.secho(f'[INFO] Registering new device"... ', nl=False)
     device = org.register_device()

@@ -110,6 +110,12 @@ def _always_unsecure(title, msg, flags):
     return pylink.enums.JLinkFlags.DLG_BUTTON_YES
 
 
+def probe_device() -> bool:
+    """Returns if any emulators are connected"""
+    jlink = pylink.JLink(unsecure_hook=_always_unsecure)
+    return jlink.num_connected_emulators() > 0
+
+
 def flash_elf(buf: io.BytesIO, board: str) -> None:
     """
     Flash an ELF image (held in a BytesIO) to an nRF52832_xxAA using pylink.
