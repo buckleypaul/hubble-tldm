@@ -20,6 +20,11 @@ LOG_MODULE_REGISTER(main, CONFIG_APP_LOG_LEVEL);
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
 
+// Buffer used for Hubble data
+// Encrypted data will go in here for the advertisement.
+#define HUBBLE_USER_BUFFER_LEN 31
+static uint8_t _hubble_user_buffer[HUBBLE_USER_BUFFER_LEN];
+
 /*
  * A build error on this line means your board is unsupported.
  * See the sample documentation for information on how to fix this.
@@ -97,16 +102,15 @@ int main(void)
 		K_SECONDS(ADV_UPDATE_PERIOD_S));
 
 	while (1) {
-		size_t out_len;
-		void *data = hubble_ble_advertise_get(NULL, 0, &out_len);
-		if (data == NULL) {
+		size_t out_len = HUBBLE_USER_BUFFER_LEN;
+		err = hubble_ble_advertise_get(NULL, 0, _hubble_user_buffer, &out_len);
+		if (err != 0) {
 			LOG_ERR("Failed to get the advertisement data");
-			err = -ENODATA;
 			goto end;
 		}
 		app_ad[1].data_len = out_len;
 		app_ad[1].type = BT_DATA_SVC_DATA16;
-		app_ad[1].data = data;
+		app_ad[1].data = _hubble_user_buffer;
 
 		LOG_DBG("Number of bytes in advertisement: %d", out_len);
 
