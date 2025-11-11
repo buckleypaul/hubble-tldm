@@ -1,0 +1,22 @@
+# Copyright (c) 2024 HubbleNetwork
+# SPDX-License-Identifier: Apache-2.0
+
+manifest:
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: hubble
+      url-base: https://github.com/HubbleNetwork
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: main
+      import: true
+      west-commands: scripts/west-commands.yml
+    - name: hubblenetwork-sdk
+      repo-path: sdk
+      revision: main
+      path: modules/lib/hubblenetwork-sdk
+      remote: hubble

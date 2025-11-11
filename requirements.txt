@@ -1,3 +1,0 @@
-# Serial communication for device provisioning
-pyserial>=3.5
-pyelftools
