@@ -14,8 +14,18 @@
 LOG_MODULE_REGISTER(main, CONFIG_APP_LOG_LEVEL);
 
 
-#define BLINK_PERIOD_S 1
 #define ADV_UPDATE_PERIOD_S 300
+
+/* Advertising interval settings */
+#define ADV_INTERVAL_S 2
+#define ADV_INTERVAL_CNT_MIN (ADV_INTERVAL_S * 1600)
+#define ADV_INTERVAL_CNT_MAX (ADV_INTERVAL_S * 2000)
+
+/* Blink settings */
+#define BLINK_PERIOD_MS (ADV_INTERVAL_S * 1000)
+#define BLINK_ONTIME_MS 100
+#define BLINK_OFFTIME_MS (BLINK_PERIOD_MS - BLINK_ONTIME_MS)
+
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -51,7 +61,11 @@ K_TIMER_DEFINE(message_timer, timer_cb, NULL);
 
 static void blink_timer_cb(struct k_timer *timer)
 {
-	gpio_pin_toggle_dt(&led);
+	static bool led_state = false;
+	k_timeout_t next = led_state ? K_MSEC(BLINK_OFFTIME_MS) : K_MSEC(BLINK_ONTIME_MS);
+	led_state = !led_state;
+	gpio_pin_set_dt(&led, led_state);
+	k_timer_start(timer, next, K_NO_WAIT);
 }
 K_TIMER_DEFINE(blink_timer, blink_timer_cb, NULL);
 
@@ -90,10 +104,7 @@ int main(void)
 	}
 
 	/* Blink an LED as a "proof of life" */
-	k_timer_start(
-		&blink_timer,
-		K_SECONDS(BLINK_PERIOD_S),
-		K_SECONDS(BLINK_PERIOD_S));
+	k_timer_start(&blink_timer, K_NO_WAIT, K_NO_WAIT);
 
 	/* Update the message we send every ADV_UPDATE_PERIOD_S */
 	k_timer_start(
@@ -115,8 +126,8 @@ int main(void)
 		LOG_DBG("Number of bytes in advertisement: %d", out_len);
 
 		err = bt_le_adv_start(BT_LE_ADV_PARAM(BT_LE_ADV_OPT_USE_NRPA,
-					      BT_GAP_ADV_FAST_INT_MIN_2,
-					      BT_GAP_ADV_FAST_INT_MAX_2, NULL),
+					      ADV_INTERVAL_CNT_MIN,
+					      ADV_INTERVAL_CNT_MAX, NULL),
 				      app_ad, ARRAY_SIZE(app_ad), NULL, 0);
 		if (err != 0) {
 			LOG_ERR("Bluetooth advertisement failed (err %d)", err);

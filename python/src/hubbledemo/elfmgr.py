@@ -26,6 +26,7 @@ _BOARD_TO_JLINK_DEVICE: Dict[str, str] = {
     "nrf21540dk": "nRF52840_xxAA",
     "xg24_ek2703a": "EFR32MG24BxxxF1536",
     "xg22_ek4108a": "EFR32MG22CxxxF512",
+    "lp_em_cc2340r5": "CC2340R5",
 }
 
 
